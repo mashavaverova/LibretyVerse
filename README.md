@@ -1,11 +1,66 @@
-# LibretyVerse
+## Foundry
 
-## Decentralized Publishing Platform
+**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 
-This open-source project, part of my diploma at Medieinstitutet, is all about giving power back to authors. It’s a platform where writers can publish books or content that might be censored, using blockchain to make it untouchable.
+Foundry consists of:
 
-Authors turn their content into NFTs (unique digital items), get paid automatically when someone buys, and control who gets access. Readers can buy what they want, knowing the author gets their fair cut. Content is stored safely on IPFS or Arweave so it doesn’t disappear.
+-   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
+-   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
+-   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
+-   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
-The whole thing runs on Solidity, Node.js, and Web3.js, blending blockchain tech with an easy-to-use interface. It’s open-source, so anyone can join in to make publishing free and fair for everyone.
+## Documentation
 
+https://book.getfoundry.sh/
 
+## Usage
+
+### Build
+
+```shell
+$ forge build
+```
+
+### Test
+
+```shell
+$ forge test
+```
+
+### Format
+
+```shell
+$ forge fmt
+```
+
+### Gas Snapshots
+
+```shell
+$ forge snapshot
+```
+
+### Anvil
+
+```shell
+$ anvil
+```
+
+### Deploy
+
+```shell
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```
+
+### Cast
+
+```shell
+$ cast <subcommand>
+```
+
+### Help
+
+```shell
+$ forge --help
+$ anvil --help
+$ cast --help
+```
