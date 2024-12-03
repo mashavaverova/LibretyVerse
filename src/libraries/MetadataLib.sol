@@ -42,8 +42,8 @@ library MetadataLib {
         if (metadata.totalCopies == 0) {
             return ("totalCopies", "Total copies must be greater than zero");
         }
-        if (metadata.copyNumber > metadata.totalCopies) {
-            return ("copyNumber", "Copy number exceeds total copies");
+        if (metadata.copyNumber == 0 || metadata.copyNumber > metadata.totalCopies) {
+            return ("copyNumber", "Copy number must be greater than zero and within total copies");
         }
         return ("", ""); // No errors
     }
@@ -54,6 +54,8 @@ library MetadataLib {
     function isValidURI(string memory uri) internal pure returns (bool) {
         bytes memory uriBytes = bytes(uri);
         if (uriBytes.length < 8) return false;
+
+        // Check for "http://" or "https://"
         return (
             (uriBytes[0] == 'h' &&
                 uriBytes[1] == 't' &&
@@ -62,7 +64,7 @@ library MetadataLib {
                 uriBytes[4] == ':' &&
                 uriBytes[5] == '/' &&
                 uriBytes[6] == '/') &&
-            (uriBytes[7] == '/' || uriBytes[7] == 's') // Allow "http://" or "https://"
+            (uriBytes[7] == '/' || uriBytes[7] == 's')
         );
     }
 
