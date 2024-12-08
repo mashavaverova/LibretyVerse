@@ -6,6 +6,9 @@ pragma solidity 0.8.21;
 library RoyaltyLib {
     error InvalidFeeConfiguration(string reason);
 
+   // event RoyaltiesCalculated(uint256 authorRoyalty, uint256 platformRoyalty, uint256 donationRoyalty);
+
+
     /// @notice Calculates royalty splits based on sale price and fee percentages.
     /// @param salePrice The total sale price.
     /// @param authorFee Percentage allocated to the author (0–100).
@@ -33,6 +36,8 @@ library RoyaltyLib {
         authorRoyalty = (salePrice * authorFee) / 100;
         platformRoyalty = (salePrice * platformFee) / 100;
         donationRoyalty = (salePrice * donationFee) / 100;
+
+    //    emit RoyaltiesCalculated(authorRoyalty, platformRoyalty, donationRoyalty);
 
         return (authorRoyalty, platformRoyalty, donationRoyalty);
     }

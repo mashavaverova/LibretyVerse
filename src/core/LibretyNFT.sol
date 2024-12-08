@@ -3,16 +3,13 @@ pragma solidity 0.8.21;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IContentAccess.sol";
 import "../interfaces/IRoyaltyManager.sol";
-import "../interfaces/IPlatformAdmin.sol";
 import "../libraries/MetadataLib.sol";
 
 /// @title LibretyNFT
 /// @notice Manages minting of books as NFTs, copy limits, and metadata retrieval.
 contract LibretyNFT is ERC721, AccessControl {
-    using Counters for Counters.Counter;
     using MetadataLib for MetadataLib.Metadata;
 
     // Constants for roles
@@ -20,15 +17,15 @@ contract LibretyNFT is ERC721, AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     // State variables
-    Counters.Counter private _bookIdCounter; // Tracks book IDs
-    Counters.Counter private _tokenIdCounter; // Tracks token IDs
+    uint256 private _bookIdCounter; // Tracks book IDs
+    uint256 private _tokenIdCounter; // Tracks token IDs
     IContentAccess public contentAccess; // Content access contract
     IRoyaltyManager public royaltyManager; // Royalty manager contract
 
     struct Book {
-        MetadataLib.Metadata metadata;
-        uint256 maxCopies;
-        uint256 mintedCopies;
+        MetadataLib.Metadata metadata; // Book metadata
+        uint256 maxCopies;             // Maximum number of copies
+        uint256 mintedCopies;          // Number of minted copies
     }
 
     // Mappings
@@ -50,10 +47,15 @@ contract LibretyNFT is ERC721, AccessControl {
         address _contentAccess,
         address _royaltyManager
     ) ERC721(_name, _symbol) {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
         contentAccess = IContentAccess(_contentAccess);
         royaltyManager = IRoyaltyManager(_royaltyManager);
+    }
+
+        /// @notice Resolves interface conflicts by overriding supportsInterface
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 
     /// @notice Mints a new book NFT.
@@ -65,8 +67,8 @@ contract LibretyNFT is ERC721, AccessControl {
         require(bytes(field).length == 0, reason);
 
         // Increment book ID and store book metadata
-        uint256 bookId = _bookIdCounter.current();
-        _bookIdCounter.increment();
+        uint256 bookId = _bookIdCounter;
+        _bookIdCounter++;
         books[bookId] = Book(metadata, maxCopies, 0);
 
         // Configure royalties for the book
@@ -83,8 +85,8 @@ contract LibretyNFT is ERC721, AccessControl {
         require(book.mintedCopies < book.maxCopies, "Max copies reached");
 
         // Increment token ID and mint the NFT
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter;
+        _tokenIdCounter++;
         book.mintedCopies++;
         tokenToBookId[tokenId] = bookId;
         _mint(msg.sender, tokenId);
@@ -100,6 +102,7 @@ contract LibretyNFT is ERC721, AccessControl {
     /// @return The metadata associated with the token.
     function getMetadata(uint256 tokenId) external view returns (MetadataLib.Metadata memory) {
         uint256 bookId = tokenToBookId[tokenId];
+        require(books[bookId].maxCopies > 0, "Invalid token ID");
         return books[bookId].metadata;
     }
 
