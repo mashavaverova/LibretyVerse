@@ -3,9 +3,12 @@ pragma solidity 0.8.21;
 
 import "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
 
+/// @title MetadataLib
+/// @notice Provides utilities for managing and validating metadata.
 library MetadataLib {
     using Strings for uint256;
 
+    /// @dev Metadata structure to hold book details.
     struct Metadata {
         string title;
         string author;
@@ -16,6 +19,7 @@ library MetadataLib {
         uint256 totalCopies;
     }
 
+    /// @dev Custom error for invalid metadata.
     error InvalidMetadata(string field, string reason);
 
     /// @notice Validates the metadata structure.
@@ -28,13 +32,13 @@ library MetadataLib {
         returns (string memory field, string memory reason)
     {
         if (bytes(metadata.title).length == 0) {
-            return ("title", "Title is required");
+            return ("title", "Title must not be empty");
         }
         if (bytes(metadata.author).length == 0) {
-            return ("author", "Author is required");
+            return ("author", "Author must not be empty");
         }
         if (!isValidURI(metadata.contentLink)) {
-            return ("contentLink", "Invalid URI format");
+            return ("contentLink", "Content link must be a valid URI (http/https)");
         }
         if (metadata.price == 0) {
             return ("price", "Price must be greater than zero");
@@ -45,34 +49,37 @@ library MetadataLib {
         if (metadata.copyNumber == 0 || metadata.copyNumber > metadata.totalCopies) {
             return ("copyNumber", "Copy number must be greater than zero and within total copies");
         }
-        return ("", ""); // No errors
+        return ("", ""); // Valid metadata
     }
 
     /// @notice Checks if a string is a valid URI.
     /// @param uri The URI string to validate.
-    /// @return True if the URI is valid, false otherwise.
-    function isValidURI(string memory uri) internal pure returns (bool) {
+    /// @return isValid True if the URI is valid, false otherwise.
+    function isValidURI(string memory uri) internal pure returns (bool isValid) {
         bytes memory uriBytes = bytes(uri);
-        if (uriBytes.length < 8) return false;
+        if (uriBytes.length < 8) return false; // Minimum length for valid URI
 
         // Check for "http://" or "https://"
-        return (
-            (uriBytes[0] == 'h' &&
-                uriBytes[1] == 't' &&
-                uriBytes[2] == 't' &&
-                uriBytes[3] == 'p' &&
-                uriBytes[4] == ':' &&
-                uriBytes[5] == '/' &&
-                uriBytes[6] == '/') &&
+        if (
+            uriBytes[0] == 'h' &&
+            uriBytes[1] == 't' &&
+            uriBytes[2] == 't' &&
+            uriBytes[3] == 'p' &&
+            uriBytes[4] == ':' &&
+            uriBytes[5] == '/' &&
+            uriBytes[6] == '/' &&
             (uriBytes[7] == '/' || uriBytes[7] == 's')
-        );
+        ) {
+            return true;
+        }
+        return false;
     }
 
     /// @notice Formats metadata as a JSON-like string for external systems.
     /// @param metadata The metadata to format.
-    /// @return A JSON-like string representation of the metadata.
-    function formatMetadata(Metadata memory metadata) internal pure returns (string memory) {
-        return string(
+    /// @return formattedMetadata A JSON-like string representation of the metadata.
+    function formatMetadata(Metadata memory metadata) internal pure returns (string memory formattedMetadata) {
+        formattedMetadata = string(
             abi.encodePacked(
                 "{",
                 '"title":"', metadata.title, '",',

@@ -8,7 +8,7 @@ interface IPaymentHandler {
     /// @param tokenId The ID of the token being purchased.
     /// @param amount The payment amount.
     /// @param token The address of the ERC-20 token used for payment (use address(0) for native currency).
-    function processPayment(uint256 tokenId, uint256 amount, address token) external;
+    function processPayment(uint256 tokenId, uint256 amount, address token) external payable;
 
     /// @notice Withdraws accumulated funds to a recipient address.
     /// @param recipient The address receiving the withdrawn funds.

@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/IContentAccess.sol";
 import "../interfaces/IRoyaltyManager.sol";
+import "../interfaces/IPaymentHandler.sol";
 import "../libraries/MetadataLib.sol";
 
 /// @title LibretyNFT
@@ -21,6 +22,7 @@ contract LibretyNFT is ERC721, AccessControl {
     uint256 private _tokenIdCounter; // Tracks token IDs
     IContentAccess public contentAccess; // Content access contract
     IRoyaltyManager public royaltyManager; // Royalty manager contract
+    IPaymentHandler public paymentHandler; // Payment handler contract
 
     struct Book {
         MetadataLib.Metadata metadata; // Book metadata
@@ -41,19 +43,22 @@ contract LibretyNFT is ERC721, AccessControl {
     /// @param _symbol The symbol of the NFT collection.
     /// @param _contentAccess The address of the content access contract.
     /// @param _royaltyManager The address of the royalty manager contract.
+    /// @param _paymentHandler The address of the payment handler contract.
     constructor(
         string memory _name,
         string memory _symbol,
         address _contentAccess,
-        address _royaltyManager
+        address _royaltyManager,
+        address _paymentHandler
     ) ERC721(_name, _symbol) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         contentAccess = IContentAccess(_contentAccess);
         royaltyManager = IRoyaltyManager(_royaltyManager);
+        paymentHandler = IPaymentHandler(_paymentHandler);
     }
 
-        /// @notice Resolves interface conflicts by overriding supportsInterface
+    /// @notice Resolves interface conflicts by overriding supportsInterface
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
@@ -79,10 +84,16 @@ contract LibretyNFT is ERC721, AccessControl {
 
     /// @notice Mints a copy of an existing book.
     /// @param bookId The ID of the book.
-    function mintCopy(uint256 bookId) external {
+    function mintCopy(uint256 bookId) external payable {
         Book storage book = books[bookId];
         require(book.maxCopies > 0, "Book does not exist");
         require(book.mintedCopies < book.maxCopies, "Max copies reached");
+
+        // Retrieve the metadata to get price
+        MetadataLib.Metadata memory metadata = book.metadata;
+
+        // Process payment through the PaymentHandler
+        paymentHandler.processPayment{value: msg.value}(bookId, metadata.price, address(0));
 
         // Increment token ID and mint the NFT
         uint256 tokenId = _tokenIdCounter;
@@ -128,5 +139,11 @@ contract LibretyNFT is ERC721, AccessControl {
     /// @param newRoyaltyManager The new royalty manager contract address.
     function updateRoyaltyManager(address newRoyaltyManager) external onlyRole(ADMIN_ROLE) {
         royaltyManager = IRoyaltyManager(newRoyaltyManager);
+    }
+
+    /// @notice Updates the payment handler contract address.
+    /// @param newPaymentHandler The new payment handler contract address.
+    function updatePaymentHandler(address newPaymentHandler) external onlyRole(ADMIN_ROLE) {
+        paymentHandler = IPaymentHandler(newPaymentHandler);
     }
 }
