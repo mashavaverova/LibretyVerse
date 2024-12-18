@@ -55,10 +55,6 @@ Thumbs.db
 .env.production
 .env.development
 lib/
-package-lock.json
-coverage-html/
-lcov.info
-
 
 
 
