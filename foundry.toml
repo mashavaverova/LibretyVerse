@@ -2,5 +2,11 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+optimizer = true  # Enables the optimizer
+optimize_runs = 200  # Sets the optimization runs (200 is a good starting point)
+via_ir = true      # Enables the via-ir optimizer
+disable_contract_metadata = true
+
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

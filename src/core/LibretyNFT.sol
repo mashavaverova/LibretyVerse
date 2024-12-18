@@ -1,149 +1,291 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
-
+pragma solidity 0.8.20;
+/*
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/IContentAccess.sol";
 import "../interfaces/IRoyaltyManager.sol";
 import "../interfaces/IPaymentHandler.sol";
+import "../interfaces/ILibretyNFT.sol";
 import "../libraries/MetadataLib.sol";
+import "forge-std/console.sol"; // Import console.log
 
-/// @title LibretyNFT
-/// @notice Manages minting of books as NFTs, copy limits, and metadata retrieval.
-contract LibretyNFT is ERC721, AccessControl {
+error UnauthorizedAccount_LNFT(address account, bytes32 role); // Define globally
+
+contract LibretyNFT is ERC721, AccessControl, ILibretyNFT {
     using MetadataLib for MetadataLib.Metadata;
 
     // Constants for roles
     bytes32 public constant AUTHOR_ROLE = keccak256("AUTHOR_ROLE");
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant PLATFORM_ADMIN_ROLE = keccak256("PLATFORM_ADMIN_ROLE");
 
     // State variables
-    uint256 private _bookIdCounter; // Tracks book IDs
-    uint256 private _tokenIdCounter; // Tracks token IDs
-    IContentAccess public contentAccess; // Content access contract
-    IRoyaltyManager public royaltyManager; // Royalty manager contract
-    IPaymentHandler public paymentHandler; // Payment handler contract
+    uint256 private _bookIdCounter;
+    uint256 private _tokenIdCounter;
+    IContentAccess public contentAccess;
+    IRoyaltyManager public royaltyManager;
+    IPaymentHandler public paymentHandler;
+
+    // Custom tracking of role members
+    mapping(bytes32 => address[]) private _roleMembers;
 
     struct Book {
-        MetadataLib.Metadata metadata; // Book metadata
-        uint256 maxCopies;             // Maximum number of copies
-        uint256 mintedCopies;          // Number of minted copies
+        MetadataLib.Metadata metadata;
+        uint256 maxCopies;
+        uint256 mintedCopies;
+        uint256 price; // Price in wei
+        address author; // Address of the author (or platform admin if no author)
     }
 
     // Mappings
-    mapping(uint256 => Book) private books; // Maps bookId to Book
-    mapping(uint256 => uint256) private tokenToBookId; // Maps tokenId to bookId
+    mapping(uint256 => Book) private books;
+    mapping(uint256 => uint256) private tokenToBookId;
 
     // Events
-    event BookMinted(uint256 indexed bookId, address indexed author, string title, uint256 maxCopies);
+    event BookMinted(
+        uint256 indexed bookId,
+        address indexed author,
+        string title,
+        uint256 maxCopies,
+        uint256 price,
+        string ipfsHash
+    );
     event CopyMinted(uint256 indexed bookId, uint256 indexed tokenId, address indexed recipient);
 
-    /// @notice Constructor
-    /// @param _name The name of the NFT collection.
-    /// @param _symbol The symbol of the NFT collection.
-    /// @param _contentAccess The address of the content access contract.
-    /// @param _royaltyManager The address of the royalty manager contract.
-    /// @param _paymentHandler The address of the payment handler contract.
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        address _contentAccess,
-        address _royaltyManager,
-        address _paymentHandler
-    ) ERC721(_name, _symbol) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
-        contentAccess = IContentAccess(_contentAccess);
-        royaltyManager = IRoyaltyManager(_royaltyManager);
-        paymentHandler = IPaymentHandler(_paymentHandler);
-    }
+constructor(
+    string memory _name,
+    string memory _symbol,
+    address _contentAccess,
+    address _royaltyManager,
+    address _paymentHandler
+) ERC721(_name, _symbol) {
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PLATFORM_ADMIN_ROLE, msg.sender);
 
-    /// @notice Resolves interface conflicts by overriding supportsInterface
+    // Make PLATFORM_ADMIN_ROLE its own admin role
+    _setRoleAdmin(PLATFORM_ADMIN_ROLE, PLATFORM_ADMIN_ROLE);
+
+    _roleMembers[PLATFORM_ADMIN_ROLE].push(msg.sender); // Track the platform admin
+    contentAccess = IContentAccess(_contentAccess);
+    royaltyManager = IRoyaltyManager(_royaltyManager);
+    paymentHandler = IPaymentHandler(_paymentHandler);
+}
+
+
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
-    /// @notice Mints a new book NFT.
-    /// @param metadata The metadata associated with the book.
-    /// @param maxCopies The maximum number of copies for the book.
-    function mintNFT(MetadataLib.Metadata memory metadata, uint256 maxCopies) external onlyRole(AUTHOR_ROLE) {
-        // Validate metadata
-        (string memory field, string memory reason) = metadata.validateMetadata();
-        require(bytes(field).length == 0, reason);
+    /// @notice Mint a new NFT book
+ function mintNFT(
+    MetadataLib.Metadata memory metadata,
+    uint256 maxCopies,
+    uint256 price
+) external {
+    console.log("mintNFT called by:", msg.sender);
 
-        // Increment book ID and store book metadata
-        uint256 bookId = _bookIdCounter;
-        _bookIdCounter++;
-        books[bookId] = Book(metadata, maxCopies, 0);
+    address author = hasRole(AUTHOR_ROLE, msg.sender) ? msg.sender : getRoleMember(PLATFORM_ADMIN_ROLE, 0);
+    console.log("Author determined as:", author);
 
-        // Configure royalties for the book
-        royaltyManager.setRoyaltyConfig(80, 10, 10); // Example: 80% author, 10% platform, 10% donation
+    require(maxCopies > 0, "Max copies must be greater than 0");
+    require(price > 0, "Price must be greater than 0");
+    console.log("Max copies:", maxCopies, "Price:", price);
 
-        emit BookMinted(bookId, msg.sender, metadata.title, maxCopies);
-    }
+    (string memory field, string memory reason) = metadata.validateMetadata();
+    require(bytes(field).length == 0, reason);
 
-    /// @notice Mints a copy of an existing book.
-    /// @param bookId The ID of the book.
-    function mintCopy(uint256 bookId) external payable {
-        Book storage book = books[bookId];
-        require(book.maxCopies > 0, "Book does not exist");
-        require(book.mintedCopies < book.maxCopies, "Max copies reached");
+    uint256 bookId = _bookIdCounter;
+    console.log("Book ID assigned:", bookId);
+    _bookIdCounter++;
+    books[bookId] = Book(metadata, maxCopies, 0, price, author);
 
-        // Retrieve the metadata to get price
-        MetadataLib.Metadata memory metadata = book.metadata;
+    emit BookMinted(bookId, author, metadata.title, maxCopies, price, metadata.contentLink);
+    console.log("BookMinted event emitted for book ID:", bookId);
+}
 
-        // Process payment through the PaymentHandler
-        paymentHandler.processPayment{value: msg.value}(bookId, metadata.price, address(0));
 
-        // Increment token ID and mint the NFT
-        uint256 tokenId = _tokenIdCounter;
-        _tokenIdCounter++;
-        book.mintedCopies++;
-        tokenToBookId[tokenId] = bookId;
-        _mint(msg.sender, tokenId);
+    /// @notice Mint a copy of an existing book
+function mintCopy(uint256 bookId) external payable {
+    console.log("mintCopy called for book ID:", bookId, "by:", msg.sender);
 
-        // Grant content access to the buyer
-        contentAccess.grantAccess(msg.sender, tokenId);
+    Book storage book = books[bookId];
+    require(book.maxCopies > 0, "Book does not exist");
+    require(book.mintedCopies < book.maxCopies, "Max copies reached");
+    console.log("Book exists. Current minted copies:", book.mintedCopies);
 
-        emit CopyMinted(bookId, tokenId, msg.sender);
-    }
+    require(msg.value >= book.price, "Insufficient payment");
+    console.log("Payment received:", msg.value, "Required price:", book.price);
 
-    /// @notice Retrieves metadata for a specific token.
-    /// @param tokenId The token ID.
-    /// @return The metadata associated with the token.
+    uint256 tokenId = _tokenIdCounter;
+    _tokenIdCounter++;
+    book.mintedCopies++;
+    tokenToBookId[tokenId] = bookId;
+
+    console.log("Token ID assigned:", tokenId);
+
+    // Calculate royalties
+    (uint256 authorRoyalty, uint256 platformRoyalty, uint256 totalDonation) =
+        royaltyManager.calculateRoyalties(msg.value);
+
+    console.log("Author Royalty:", authorRoyalty);
+    console.log("Platform Royalty:", platformRoyalty);
+    console.log("Total Donations:", totalDonation);
+    
+    // Distribute payments via payment handler
+    paymentHandler.processPayment{value: msg.value}(
+        bookId,
+        book.price,
+        book.author,
+        platformRoyalty,
+        authorRoyalty,
+        totalDonation
+    );
+    console.log("Payment processed via PaymentHandler.");
+
+    // Mint the NFT
+    _mint(msg.sender, tokenId);
+    contentAccess.grantAccess(msg.sender, tokenId);
+
+    emit CopyMinted(bookId, tokenId, msg.sender);
+    console.log("CopyMinted event emitted for token ID:", tokenId, "Recipient:", msg.sender);
+}
+
+
+    /// @notice Retrieve metadata for a specific token
     function getMetadata(uint256 tokenId) external view returns (MetadataLib.Metadata memory) {
         uint256 bookId = tokenToBookId[tokenId];
         require(books[bookId].maxCopies > 0, "Invalid token ID");
         return books[bookId].metadata;
     }
 
-    /// @notice Grants the author role to a user.
-    /// @param author The address to be granted the author role.
-    function grantAuthorRole(address author) external onlyRole(ADMIN_ROLE) {
-        grantRole(AUTHOR_ROLE, author);
+    /// @notice Retrieve book information
+    function getBook(uint256 bookId)
+        external
+        view
+        returns (
+            MetadataLib.Metadata memory metadata,
+            uint256 maxCopies,
+            uint256 mintedCopies,
+            uint256 price,
+            address author
+        )
+    {
+        Book storage book = books[bookId];
+        require(book.maxCopies > 0, "Book does not exist");
+        return (
+            book.metadata,
+            book.maxCopies,
+            book.mintedCopies,
+            book.price,
+            book.author
+        );
     }
 
-    /// @notice Revokes the author role from a user.
-    /// @param author The address to have the author role revoked.
-    function revokeAuthorRole(address author) external onlyRole(ADMIN_ROLE) {
-        revokeRole(AUTHOR_ROLE, author);
+function grantRole(bytes32 role, address account) public override {
+    // Manually check if the caller has the admin role
+    if (!hasRole(getRoleAdmin(role), msg.sender)) {
+        revert UnauthorizedAccount_LNFT(msg.sender, getRoleAdmin(role));
     }
 
-    /// @notice Updates the content access contract address.
-    /// @param newContentAccess The new content access contract address.
-    function updateContentAccess(address newContentAccess) external onlyRole(ADMIN_ROLE) {
-        contentAccess = IContentAccess(newContentAccess);
-    }
+    console.log("Attempting to grant role:");
+    console.log("  Account:", account);
+    console.log("  Sender:", msg.sender);
 
-    /// @notice Updates the royalty manager contract address.
-    /// @param newRoyaltyManager The new royalty manager contract address.
-    function updateRoyaltyManager(address newRoyaltyManager) external onlyRole(ADMIN_ROLE) {
-        royaltyManager = IRoyaltyManager(newRoyaltyManager);
-    }
+    // Log role and admin role details
+    bytes32 adminRole = getRoleAdmin(role);
+    console.log("  Role being granted (bytes32):", uint256(role));
+    console.log("  Admin role required for this action:", uint256(adminRole));
+    console.log("  Caller has the admin role:", hasRole(adminRole, msg.sender));
 
-    /// @notice Updates the payment handler contract address.
-    /// @param newPaymentHandler The new payment handler contract address.
-    function updatePaymentHandler(address newPaymentHandler) external onlyRole(ADMIN_ROLE) {
-        paymentHandler = IPaymentHandler(newPaymentHandler);
-    }
+    // Ensure the account does not already have the role
+    console.log("  Account has role before grant:", hasRole(role, account));
+    require(!hasRole(role, account), "Account already has the role");
+
+    // Call the parent implementation to grant the role
+    super.grantRole(role, account);
+
+    // Track the new role member
+    _roleMembers[role].push(account);
+
+    // Log after the role has been granted
+    console.log("Role granted and member added.");
+    console.log("  Role successfully granted to account:", account);
+    console.log("  Account has role after grant:", hasRole(role, account));
+    console.log("  Total role members after grant:", _roleMembers[role].length);
 }
+
+
+    function _isRoleMember(bytes32 role, address account) internal view returns (bool) {
+        for (uint256 i = 0; i < _roleMembers[role].length; i++) {
+            if (_roleMembers[role][i] == account) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function revokeRole(bytes32 role, address account) public override onlyRole(getRoleAdmin(role)) {
+        console.log("Attempting to revoke role:");
+        console.log("  Account:", account);
+        console.log("  Sender:", msg.sender);
+
+        require(hasRole(role, account), "Account does not have the role");
+        super.revokeRole(role, account);
+
+        // Remove the role member safely
+        _removeRoleMember(role, account);
+    }
+
+    function _removeRoleMember(bytes32 role, address account) internal {
+        uint256 length = _roleMembers[role].length;
+        for (uint256 i = 0; i < length; i++) {
+            if (_roleMembers[role][i] == account) {
+                _roleMembers[role][i] = _roleMembers[role][length - 1];
+                _roleMembers[role].pop();
+                console.log("Role revoked and member removed.");
+                return;
+            }
+        }
+        console.log("Role member not found.");
+    }
+
+
+
+
+
+    /// @notice Retrieve a role member by index
+    function getRoleMember(bytes32 role, uint256 index) public view returns (address) {
+        require(index < _roleMembers[role].length, "Index out of bounds");
+        return _roleMembers[role][index];
+    }
+
+    /// @notice Get the total number of members for a role
+    function getRoleMemberCount(bytes32 role) public view returns (uint256) {
+        return _roleMembers[role].length;
+    }
+
+
+
+
+
+
+
+
+
+
+    function updateContentAccess(address newContentAccess) external onlyRole(PLATFORM_ADMIN_ROLE) {
+    require(newContentAccess != address(0), "Invalid address");
+    contentAccess = IContentAccess(newContentAccess);
+}
+
+function updateRoyaltyManager(address newRoyaltyManager) external onlyRole(PLATFORM_ADMIN_ROLE) {
+    require(newRoyaltyManager != address(0), "Invalid address");
+    royaltyManager = IRoyaltyManager(newRoyaltyManager);
+}
+
+function updatePaymentHandler(address newPaymentHandler) external onlyRole(PLATFORM_ADMIN_ROLE) {
+    require(newPaymentHandler != address(0), "Invalid address");
+    paymentHandler = IPaymentHandler(newPaymentHandler);
+}
+}
+*/

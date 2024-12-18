@@ -1,36 +1,42 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity 0.8.20;
 
 interface IRoyaltyManager {
     /// @notice Configures the royalty percentages.
     /// @param authorFee Percentage allocated to the author (0–100).
     /// @param platformFee Percentage allocated to the platform (0–100).
-    /// @param donationFee Percentage allocated to donations (0–100).
-    function setRoyaltyConfig(uint256 authorFee, uint256 platformFee, uint256 donationFee) external;
+    /// @param secondaryRoyalty Percentage allocated as royalties for secondary sales (0–10).
+    function setFees(uint256 authorFee, uint256 platformFee, uint256 secondaryRoyalty) external;
 
     /// @notice Handles royalty distribution for a primary sale.
-    /// @param tokenId The ID of the token being sold.
     /// @param salePrice The total sale price of the token.
-    function distributePrimarySale(uint256 tokenId, uint256 salePrice) external;
+    /// @param author The address of the author. If empty, the platform acts as the author.
+    function distributePrimarySale(uint256 salePrice, address author) external payable;
 
     /// @notice Handles royalty distribution for a secondary sale.
-    /// @param tokenId The ID of the token being resold.
     /// @param salePrice The total sale price of the token.
-    function distributeSecondarySale(uint256 tokenId, uint256 salePrice) external;
+    /// @param author The address of the author. If empty, the platform acts as the author.
+    function distributeSecondarySale(uint256 salePrice, address author) external payable;
+
+    /// @notice Calculates the royalties for a secondary sale.
+    /// @param salePrice The total sale price.
+    /// @return authorRoyalty The calculated royalty share for the author.
+    /// @return platformRoyalty The calculated royalty share for the platform.
+    function calculateSecondaryRoyalties(uint256 salePrice)
+        external
+        view
+        returns (uint256 authorRoyalty, uint256 platformRoyalty);
+
+    /// @notice Updates the platform's donation fee.
+    /// @param platformDonationFee The new donation fee (0–100).
+    function updatePlatformDonationFee(uint256 platformDonationFee) external;
 
     /// @notice Returns the current royalty configuration.
     /// @return authorFee The percentage allocated to the author.
     /// @return platformFee The percentage allocated to the platform.
-    /// @return donationFee The percentage allocated to donations.
-    function getRoyaltyConfig() external view returns (uint256 authorFee, uint256 platformFee, uint256 donationFee);
-
-    /// @notice Calculates the royalties for a given sale price.
-    /// @param salePrice The total sale price.
-    /// @return authorRoyalty The calculated royalty for the author.
-    /// @return platformRoyalty The calculated royalty for the platform.
-    /// @return donationRoyalty The calculated royalty for donations.
-    function calculateRoyalties(uint256 salePrice)
+    /// @return secondaryRoyalty The percentage allocated as royalties for secondary sales.
+    function getRoyaltyConfig()
         external
         view
-        returns (uint256 authorRoyalty, uint256 platformRoyalty, uint256 donationRoyalty);
+        returns (uint256 authorFee, uint256 platformFee, uint256 secondaryRoyalty);
 }

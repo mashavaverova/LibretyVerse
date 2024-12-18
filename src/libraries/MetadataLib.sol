@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity 0.8.20;
 
+import "forge-std/console.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
 
-/// @title MetadataLib
-/// @notice Provides utilities for managing and validating metadata.
 library MetadataLib {
     using Strings for uint256;
 
-    /// @dev Metadata structure to hold book details.
     struct Metadata {
         string title;
         string author;
@@ -19,76 +17,81 @@ library MetadataLib {
         uint256 totalCopies;
     }
 
-    /// @dev Custom error for invalid metadata.
-    error InvalidMetadata(string field, string reason);
+    error EmptyField(string field);
+    error InvalidURI(string uri);
+    error InvalidPrice();
+    error InvalidCopyNumber(uint256 copyNumber, uint256 totalCopies);
 
-    /// @notice Validates the metadata structure.
-    /// @param metadata The metadata to validate.
-    /// @return field The field that failed validation (empty if valid).
-    /// @return reason The reason the field failed validation (empty if valid).
     function validateMetadata(Metadata memory metadata)
         internal
         pure
         returns (string memory field, string memory reason)
     {
         if (bytes(metadata.title).length == 0) {
-            return ("title", "Title must not be empty");
+            revert EmptyField("title");
         }
         if (bytes(metadata.author).length == 0) {
-            return ("author", "Author must not be empty");
+            revert EmptyField("author");
         }
         if (!isValidURI(metadata.contentLink)) {
-            return ("contentLink", "Content link must be a valid URI (http/https)");
+            console.log("Invalid URI:", metadata.contentLink);
+            revert InvalidURI(metadata.contentLink);
         }
         if (metadata.price == 0) {
-            return ("price", "Price must be greater than zero");
+            revert InvalidPrice();
         }
         if (metadata.totalCopies == 0) {
-            return ("totalCopies", "Total copies must be greater than zero");
+            revert EmptyField("totalCopies");
         }
         if (metadata.copyNumber == 0 || metadata.copyNumber > metadata.totalCopies) {
-            return ("copyNumber", "Copy number must be greater than zero and within total copies");
+            revert InvalidCopyNumber(metadata.copyNumber, metadata.totalCopies);
         }
-        return ("", ""); // Valid metadata
+
+        return ("", "");
     }
 
-    /// @notice Checks if a string is a valid URI.
-    /// @param uri The URI string to validate.
-    /// @return isValid True if the URI is valid, false otherwise.
-    function isValidURI(string memory uri) internal pure returns (bool isValid) {
+    function isValidURI(string memory uri) internal pure returns (bool) {
         bytes memory uriBytes = bytes(uri);
-        if (uriBytes.length < 8) return false; // Minimum length for valid URI
 
-        // Check for "http://" or "https://"
-        if (
-            uriBytes[0] == 'h' &&
-            uriBytes[1] == 't' &&
-            uriBytes[2] == 't' &&
-            uriBytes[3] == 'p' &&
-            uriBytes[4] == ':' &&
-            uriBytes[5] == '/' &&
-            uriBytes[6] == '/' &&
-            (uriBytes[7] == '/' || uriBytes[7] == 's')
-        ) {
-            return true;
-        }
-        return false;
+        if (uriBytes.length < 7) return false;
+
+        // Check for http:// or https://
+        bool hasHttp = uriBytes.length >= 7 && uriBytes[0] == "h" && uriBytes[1] == "t" && uriBytes[2] == "t"
+            && uriBytes[3] == "p" && uriBytes[4] == ":" && uriBytes[5] == "/" && uriBytes[6] == "/";
+
+        bool hasHttps = uriBytes.length >= 8 && hasHttp && uriBytes[7] == "s";
+
+        // Check for ipfs://
+        bool hasIpfs = uriBytes.length >= 7 && uriBytes[0] == "i" && uriBytes[1] == "p" && uriBytes[2] == "f"
+            && uriBytes[3] == "s" && uriBytes[4] == ":" && uriBytes[5] == "/" && uriBytes[6] == "/";
+
+        return hasHttp || hasHttps || hasIpfs;
     }
 
-    /// @notice Formats metadata as a JSON-like string for external systems.
-    /// @param metadata The metadata to format.
-    /// @return formattedMetadata A JSON-like string representation of the metadata.
     function formatMetadata(Metadata memory metadata) internal pure returns (string memory formattedMetadata) {
         formattedMetadata = string(
             abi.encodePacked(
                 "{",
-                '"title":"', metadata.title, '",',
-                '"author":"', metadata.author, '",',
-                '"contentLink":"', metadata.contentLink, '",',
-                '"price":', metadata.price.toString(), ',',
-                '"license":"', metadata.license, '",',
-                '"copyNumber":', metadata.copyNumber.toString(), ',',
-                '"totalCopies":', metadata.totalCopies.toString(),
+                '"title":"',
+                metadata.title,
+                '",',
+                '"author":"',
+                metadata.author,
+                '",',
+                '"contentLink":"',
+                metadata.contentLink,
+                '",',
+                '"price":',
+                metadata.price.toString(),
+                ",",
+                '"license":"',
+                metadata.license,
+                '",',
+                '"copyNumber":',
+                metadata.copyNumber.toString(),
+                ",",
+                '"totalCopies":',
+                metadata.totalCopies.toString(),
                 "}"
             )
         );

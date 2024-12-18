@@ -1,28 +1,23 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity 0.8.20;
 
 /// @title IPaymentHandler
-/// @notice Interface for managing payments and withdrawals for NFTs.
+/// @notice Interface for the PaymentHandler contract, handling payments, royalty distribution, and content access
 interface IPaymentHandler {
-    /// @notice Processes payments for a specific token.
-    /// @param tokenId The ID of the token being purchased.
-    /// @param amount The payment amount.
-    /// @param token The address of the ERC-20 token used for payment (use address(0) for native currency).
-    function processPayment(uint256 tokenId, uint256 amount, address token) external payable;
+    /// @notice Process payment for content purchase
+    /// @param tokenId The ID of the content/NFT
+    /// @param price The total price to pay
+    /// @param paymentToken Address of the ERC20 token used, or address(0) for ETH
+    /// @param author Address of the author
+    function processPayment(uint256 tokenId, uint256 price, address paymentToken, address author) external payable;
 
-    /// @notice Withdraws accumulated funds to a recipient address.
-    /// @param recipient The address receiving the withdrawn funds.
-    /// @param amount The amount to withdraw.
-    function withdraw(address recipient, uint256 amount) external;
+    /// @notice Allows authors to withdraw their balance
+    /// @param paymentToken Address of the ERC20 token to withdraw, or address(0) for ETH
+    function withdraw(address paymentToken) external;
 
-    /// @notice Retrieves the contract balance for a specific token.
-    /// @param token The address of the token (use address(0) for native currency).
-    /// @return balance The balance of the contract for the specified token.
-    function getBalance(address token) external view returns (uint256 balance);
-
-    /// @notice Retrieves payment details for a specific token ID.
-    /// @param tokenId The ID of the token.
-    /// @return totalPaid The total amount paid for the token.
-    /// @return lastPayment The amount of the last payment made.
-    function getPaymentDetails(uint256 tokenId) external view returns (uint256 totalPaid, uint256 lastPayment);
+    /// @notice Get author's balance
+    /// @param paymentToken Address of the token, or address(0) for ETH
+    /// @param author Address of the author
+    /// @return The balance of the author for the specified token
+    function getAuthorBalance(address paymentToken, address author) external view returns (uint256);
 }
