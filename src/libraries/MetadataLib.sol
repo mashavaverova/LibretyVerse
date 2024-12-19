@@ -69,31 +69,32 @@ library MetadataLib {
     }
 
     function formatMetadata(Metadata memory metadata) internal pure returns (string memory formattedMetadata) {
-        formattedMetadata = string(
-            abi.encodePacked(
-                "{",
-                '"title":"',
-                metadata.title,
-                '",',
-                '"author":"',
-                metadata.author,
-                '",',
-                '"contentLink":"',
-                metadata.contentLink,
-                '",',
-                '"price":',
-                metadata.price.toString(),
-                ",",
-                '"license":"',
-                metadata.license,
-                '",',
-                '"copyNumber":',
-                metadata.copyNumber.toString(),
-                ",",
-                '"totalCopies":',
-                metadata.totalCopies.toString(),
-                "}"
-            )
-        );
-    }
+    formattedMetadata = string(
+        bytes.concat(
+            "{",
+            '"title":"',
+            bytes(metadata.title),
+            '",',
+            '"author":"',
+            bytes(metadata.author),
+            '",',
+            '"contentLink":"',
+            bytes(metadata.contentLink),
+            '",',
+            '"price":',
+            bytes(metadata.price.toString()),
+            ",",
+            '"license":"',
+            bytes(metadata.license),
+            '",',
+            '"copyNumber":',
+            bytes(metadata.copyNumber.toString()),
+            ",",
+            '"totalCopies":',
+            bytes(metadata.totalCopies.toString()),
+            "}"
+        )
+    );
+}
+
 }

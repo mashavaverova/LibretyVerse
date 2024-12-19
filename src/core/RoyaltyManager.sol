@@ -56,62 +56,39 @@ contract RoyaltyManager is IRoyaltyManager, ReentrancyGuard {
 
     /// @notice Calculate royalties for a primary sale and distribute them
     function distributePrimarySale(uint256 salePrice, address author) external payable override nonReentrant {
-        console.log("Starting distributePrimarySale...");
-        console.log("Sale Price:", salePrice);
-        console.log("Caller Address:", msg.sender);
-        console.log("Author Address Provided:", author);
-        console.log("Contract Balance Before:", address(this).balance);
 
-        require(salePrice > 0, "Invalid sale price");
+    require(salePrice > 0, "Invalid sale price");
 
-        // Resolving the author's address
-        address resolvedAuthor = platformAdmin.getValidAuthor(author);
-        console.log("Resolved Author Address:", resolvedAuthor);
+    // Resolving the author's address
+    address resolvedAuthor = platformAdmin.getValidAuthor(author);
+    require(resolvedAuthor != address(0), "Invalid resolved author address");
+    require(resolvedAuthor != address(this), "Cannot transfer to contract address");
 
-        // Split the sale price
-        uint256 authorShare = (salePrice * authorFee) / 100;
-        uint256 platformShare = (salePrice * platformFee) / 100;
-        console.log("Author Fee Percentage:", authorFee);
-        console.log("Platform Fee Percentage:", platformFee);
-        console.log("Initial Author Share:", authorShare);
-        console.log("Initial Platform Share:", platformShare);
+    // Validate the platform admin address
+    require(address(platformAdmin) != address(0), "Invalid platform admin address");
+    require(address(platformAdmin) != address(this), "Cannot transfer to contract address");
 
-        // Distribute donations from author's share
-        uint256 authorDonations = distributeAuthorDonations(resolvedAuthor, authorShare);
-        console.log("Donations from Author's Share:", authorDonations);
+    // Split the sale price
+    uint256 authorShare = (salePrice * authorFee) / 100;
+    uint256 platformShare = (salePrice * platformFee) / 100;
 
-        uint256 remainingAuthorShare = authorShare - authorDonations;
-        console.log("Remaining Author Share After Donations:", remainingAuthorShare);
+    // Distribute donations from author's share
+    uint256 authorDonations = distributeAuthorDonations(resolvedAuthor, authorShare);
+    uint256 remainingAuthorShare = authorShare - authorDonations;
+    uint256 platformDonations = distributePlatformDonations(platformShare);
 
-        // Distribute donations from platform's share
-        uint256 platformDonations = distributePlatformDonations(platformShare);
-        console.log("Donations from Platform's Share:", platformDonations);
+    uint256 remainingPlatformShare = platformShare - platformDonations;
 
-        uint256 remainingPlatformShare = platformShare - platformDonations;
-        console.log("Remaining Platform Share After Donations:", remainingPlatformShare);
+    // Transfer remaining funds
+    (bool authorTransferSuccess,) = payable(resolvedAuthor).call{value: remainingAuthorShare}("");
+    require(authorTransferSuccess, "Author transfer failed");
 
-        // Transfer remaining funds
-        console.log("Transferring Remaining Author Share:", remainingAuthorShare, "to:", resolvedAuthor);
-        payable(resolvedAuthor).transfer(remainingAuthorShare);
+    (bool platformTransferSuccess,) = payable(address(platformAdmin)).call{value: remainingPlatformShare}("");
+    require(platformTransferSuccess, "Platform transfer failed");
 
-        console.log(
-            "Transferring Remaining Platform Share:",
-            remainingPlatformShare,
-            "to Platform Admin at:",
-            address(platformAdmin)
-        );
-        payable(address(platformAdmin)).transfer(remainingPlatformShare);
+    emit RoyaltiesCalculated(salePrice, authorShare, platformShare, authorDonations + platformDonations);
+}
 
-        emit RoyaltiesCalculated(salePrice, authorShare, platformShare, authorDonations + platformDonations);
-        console.log("RoyaltiesCalculated Event Emitted:");
-        console.log("  Sale Price:", salePrice);
-        console.log("  Total Author Share:", authorShare);
-        console.log("  Total Platform Share:", platformShare);
-        console.log("  Total Donations:", authorDonations + platformDonations);
-
-        console.log("Contract Balance After:", address(this).balance);
-        console.log("distributePrimarySale Completed.");
-    }
 
     /// @notice Distribute donations from the author's share
     function distributeAuthorDonations(address author, uint256 authorShare) internal returns (uint256 totalDonations) {
@@ -120,7 +97,8 @@ contract RoyaltyManager is IRoyaltyManager, ReentrancyGuard {
         for (uint256 i = 0; i < targets.length; i++) {
             uint256 donationAmount = (authorShare * percentages[i]) / 100;
             if (donationAmount > 0) {
-                payable(targets[i]).transfer(donationAmount);
+                (bool success,) = payable(targets[i]).call{value: donationAmount}("");
+                require(success, "Author donation transfer failed");
                 totalDonations += donationAmount;
             }
         }
@@ -134,7 +112,8 @@ contract RoyaltyManager is IRoyaltyManager, ReentrancyGuard {
         for (uint256 i = 0; i < targets.length; i++) {
             uint256 donationAmount = (platformShare * percentages[i]) / 100;
             if (donationAmount > 0) {
-                payable(targets[i]).transfer(donationAmount);
+                (bool success,) = payable(targets[i]).call{value: donationAmount}("");
+                require(success, "Platform donation transfer failed");
                 totalDonations += donationAmount;
             }
         }
@@ -147,12 +126,16 @@ contract RoyaltyManager is IRoyaltyManager, ReentrancyGuard {
         view
         override
         returns (uint256 authorRoyalty, uint256 platformRoyalty)
-    {
+      {
+        // Validate inputs
         require(salePrice > 0, "Invalid sale price");
+        require(secondaryRoyalty > 0 && secondaryRoyalty <= 100, "Invalid secondary royalty percentage");
 
+        // Calculate royalties
         authorRoyalty = (salePrice * secondaryRoyalty) / 100;
-        platformRoyalty = (salePrice * secondaryRoyalty) / 100;
+        platformRoyalty = authorRoyalty; // Assumes a 50/50 split between author and platform
     }
+
 
     /// @notice Distribute secondary sale royalties
     function distributeSecondarySale(uint256 salePrice, address author) external payable override nonReentrant {
@@ -161,8 +144,12 @@ contract RoyaltyManager is IRoyaltyManager, ReentrancyGuard {
 
         (uint256 authorRoyalty, uint256 platformRoyalty) = calculateSecondaryRoyalties(salePrice);
 
-        payable(resolvedAuthor).transfer(authorRoyalty);
-        payable(address(platformAdmin)).transfer(platformRoyalty);
+         // Safely transfer royalties
+        (bool authorTransferSuccess,) = payable(resolvedAuthor).call{value: authorRoyalty}("");
+        require(authorTransferSuccess, "Author royalty transfer failed");
+
+        (bool platformTransferSuccess,) = payable(address(platformAdmin)).call{value: platformRoyalty}("");
+        require(platformTransferSuccess, "Platform royalty transfer failed");
 
         emit SecondaryRoyaltiesCalculated(salePrice, authorRoyalty, platformRoyalty);
     }

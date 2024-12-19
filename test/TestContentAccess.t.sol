@@ -92,4 +92,89 @@ contract ContentAccessTest is Test {
 
         contentAccess.revokeAccess(user, tokenId);
     }
+
+
+
+    function testGrantAccessTwice() public {
+        contentAccess.grantAccess(user, tokenId);
+
+        // Grant access again
+        vm.expectEmit(true, true, true, true);
+        emit AccessGranted(user, tokenId, 0);
+
+        contentAccess.grantAccess(user, tokenId);
+
+        (bool hasAccess, uint256 expiryTimestamp) = contentAccess.checkTimedAccess(user, tokenId);
+        assertTrue(hasAccess, "User should still have access");
+        assertEq(expiryTimestamp, 0, "Expiry timestamp should remain 0 for permanent access");
+    }
+
+    function testGrantTimedAccessOverwritesPermanentAccess() public {
+        contentAccess.grantAccess(user, tokenId); // Grant permanent access
+
+        uint256 expiryTimestamp = block.timestamp + 1 days;
+
+        // Grant timed access
+        vm.expectEmit(true, true, true, true);
+        emit AccessGranted(user, tokenId, expiryTimestamp);
+
+        contentAccess.grantTimedAccess(user, tokenId, expiryTimestamp);
+
+        (bool hasAccess, uint256 expiry) = contentAccess.checkTimedAccess(user, tokenId);
+        assertTrue(hasAccess, "User should have timed access");
+        assertEq(expiry, expiryTimestamp, "Expiry timestamp should be updated");
+    }
+
+    function testRevokeNonExistentAccess() public {
+        vm.expectEmit(true, true, false, false);
+        emit AccessRevoked(user, tokenId);
+
+        contentAccess.revokeAccess(user, tokenId);
+
+        (bool hasAccess,) = contentAccess.checkTimedAccess(user, tokenId);
+        assertFalse(hasAccess, "User access should still be revoked");
+    }
+
+
+    function testGrantTimedAccessTwice() public {
+        uint256 initialExpiryTimestamp = block.timestamp + 1 days;
+        contentAccess.grantTimedAccess(user, tokenId, initialExpiryTimestamp);
+
+        uint256 newExpiryTimestamp = block.timestamp + 2 days;
+
+        // Grant timed access again
+        vm.expectEmit(true, true, true, true);
+        emit AccessGranted(user, tokenId, newExpiryTimestamp);
+
+        contentAccess.grantTimedAccess(user, tokenId, newExpiryTimestamp);
+
+        (bool hasAccess, uint256 expiry) = contentAccess.checkTimedAccess(user, tokenId);
+        assertTrue(hasAccess, "User should have updated timed access");
+        assertEq(expiry, newExpiryTimestamp, "Expiry timestamp should be updated");
+    }
+
+    function testCheckAccessForNonExistentUser() public view{
+        bool hasAccess = contentAccess.checkAccess(user, tokenId);
+        assertFalse(hasAccess, "User should not have access");
+    }
+    function testCheckTimedAccessForNonExistentUser() public view {
+        (bool hasAccess, uint256 expiryTimestamp) = contentAccess.checkTimedAccess(user, tokenId);
+        assertFalse(hasAccess, "User should not have timed access");
+        assertEq(expiryTimestamp, 0, "Expiry timestamp should be 0");
+    }
+
+    function testGrantAccessWithZeroTokenId() public {
+        uint256 zeroTokenId = 0;
+
+        vm.expectEmit(true, true, true, true);
+        emit AccessGranted(user, zeroTokenId, 0);
+
+        contentAccess.grantAccess(user, zeroTokenId);
+
+        (bool hasAccess, uint256 expiryTimestamp) = contentAccess.checkTimedAccess(user, zeroTokenId);
+        assertTrue(hasAccess, "User should have access to token ID 0");
+        assertEq(expiryTimestamp, 0, "Expiry timestamp should be 0 for permanent access");
+    }
+
+
 }

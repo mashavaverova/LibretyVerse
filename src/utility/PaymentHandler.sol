@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"; 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/IPaymentHandler.sol";
@@ -12,6 +13,8 @@ import "../interfaces/IContentAccess.sol";
 /// @title PaymentHandler
 /// @notice Handles payments, royalty distribution, and content access grants
 contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
+        using SafeERC20 for IERC20;
+
     IRoyaltyManager public royaltyManager;
     IAuthorManager public authorManager;
     IPlatformAdmin public platformAdmin;
@@ -44,7 +47,7 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         if (paymentToken == address(0)) {
             require(msg.value == price, "Incorrect ETH value");
         } else {
-            require(IERC20(paymentToken).transferFrom(msg.sender, address(this), price), "ERC20 transfer failed");
+            IERC20(paymentToken).safeTransferFrom(msg.sender, address(this), price);
         }
 
         // Retrieve royalty configuration
@@ -65,9 +68,10 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
 
         // Send remaining platform share to RoyaltyManager
         if (paymentToken == address(0)) {
-            payable(address(royaltyManager)).transfer(remainingPlatformShare);
+            (bool success,) = payable(address(royaltyManager)).call{value: remainingPlatformShare}("");
+            require(success, "ETH transfer to RoyaltyManager failed");
         } else {
-            IERC20(paymentToken).transfer(address(royaltyManager), remainingPlatformShare);
+            IERC20(paymentToken).safeTransfer(address(royaltyManager), remainingPlatformShare);
         }
 
         // Grant content access
@@ -84,10 +88,10 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         authorBalances[paymentToken][msg.sender] = 0;
 
         if (paymentToken == address(0)) {
-            (bool success,) = msg.sender.call{value: balance}("");
-            require(success, "ETH transfer failed");
+            (bool success,) = payable(msg.sender).call{value: balance}("");
+            require(success, "ETH withdrawal failed");
         } else {
-            require(IERC20(paymentToken).transfer(msg.sender, balance), "ERC20 transfer failed");
+            IERC20(paymentToken).safeTransfer(msg.sender, balance);
         }
 
         emit AuthorWithdrawn(msg.sender, balance, paymentToken);
@@ -104,9 +108,10 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
             uint256 donationAmount = (authorShare * percentages[i]) / 100;
             if (donationAmount > 0) {
                 if (paymentToken == address(0)) {
-                    payable(targets[i]).transfer(donationAmount);
+                    (bool success,) = payable(targets[i]).call{value: donationAmount}("");
+                    require(success, "ETH donation failed");
                 } else {
-                    IERC20(paymentToken).transfer(targets[i], donationAmount);
+                    IERC20(paymentToken).safeTransfer(targets[i], donationAmount);
                 }
                 totalDonations += donationAmount;
                 emit DonationSent(targets[i], donationAmount, paymentToken);
@@ -134,9 +139,10 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
             uint256 donationAmount = (platformShare * percentages[i]) / 100;
             if (donationAmount > 0) {
                 if (paymentToken == address(0)) {
-                    payable(targets[i]).transfer(donationAmount);
+                    (bool success,) = payable(targets[i]).call{value: donationAmount}("");
+                    require(success, "ETH donation failed");
                 } else {
-                    IERC20(paymentToken).transfer(targets[i], donationAmount);
+                    IERC20(paymentToken).safeTransfer(targets[i], donationAmount);
                 }
                 totalDonations += donationAmount;
                 emit DonationSent(targets[i], donationAmount, paymentToken);

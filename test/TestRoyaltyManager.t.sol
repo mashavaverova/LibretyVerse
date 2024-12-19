@@ -212,4 +212,20 @@ contract RoyaltyManagerTest is Test {
         royaltyManager.distributePrimarySale{value: salePrice}(salePrice, author);
     }
 
+    function testCalculateSecondaryRoyaltiesInvalidSalePrice() public {
+        uint256 salePrice = 0;
+
+        vm.expectRevert("Invalid sale price");
+        royaltyManager.calculateSecondaryRoyalties(salePrice);
+    }
+
+    function testSetFeesInvalidSecondaryRoyalty() public {
+        vm.prank(platformAdminAddress);
+        vm.expectRevert("Secondary royalty too high");
+        royaltyManager.setFees(50, 50, 110);
+    }
+
+
+
+
 }

@@ -54,15 +54,27 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
 
     /// @inheritdoc IAuthorManager
     function withdraw() external override nonReentrant {
-        address author = platformAdminContract.getValidAuthor(msg.sender); // Resolves platform admin fallback
-        uint256 balance = authorBalances[author];
-        require(balance > 0, "No balance to withdraw");
+    // Resolve the author's address
+    address author = platformAdminContract.getValidAuthor(msg.sender); // Resolves platform admin fallback
 
-        authorBalances[author] = 0;
-        payable(author).transfer(balance);
+    // Validate the author's address
+    require(author != address(0), "Invalid author address");
+    require(author != address(this), "Cannot withdraw to the contract address");
 
-        emit AuthorWithdrawn(author, balance);
-    }
+    // Check the author's balance
+    uint256 balance = authorBalances[author];
+    require(balance > 0, "No balance to withdraw");
+
+    // Update balance before transferring to prevent reentrancy
+    authorBalances[author] = 0;
+
+    // Perform the ETH transfer safely
+    (bool success,) = payable(author).call{value: balance}("");
+    require(success, "ETH transfer failed");
+
+    // Emit the withdrawal event
+    emit AuthorWithdrawn(author, balance);
+}
 
     /// @inheritdoc IAuthorManager
     function deposit(address author, uint256 amount) external payable override {

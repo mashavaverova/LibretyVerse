@@ -83,11 +83,25 @@ contract AuthorManagerTest is Test {
 
     // Test withdraw: No balance
     function testWithdrawNoBalance() public {
-        vm.startPrank(author);
-        vm.expectRevert("No balance to withdraw");
-        authorManager.withdraw();
-        vm.stopPrank();
-    }
+    // Mock the getValidAuthor function to return the author address
+    vm.mockCall(
+
+        address(platformAdmin),
+        abi.encodeWithSelector(platformAdmin.getValidAuthor.selector, author),
+        abi.encode(author)
+    );
+
+    // Ensure the author has no balance
+    uint256 authorBalance = authorManager.authorBalances(author);
+    assertEq(authorBalance, 0, "Author balance should be zero");
+
+    // Expect revert due to "No balance to withdraw"
+    vm.expectRevert("No balance to withdraw");
+    vm.startPrank(author);
+    authorManager.withdraw();
+    vm.stopPrank();
+}
+
 
     // Test deposit: Invalid amount
     function testDepositInvalidAmount() public {
