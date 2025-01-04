@@ -10,23 +10,52 @@ import "../interfaces/IAuthorManager.sol";
 import "../interfaces/IPlatformAdmin.sol";
 import "../interfaces/IContentAccess.sol";
 
-/// @title PaymentHandler
-/// @notice Handles payments, royalty distribution, and content access grants
+/**
+ * @title PaymentHandler
+ * @dev Handles payments, royalty distribution, donations, and granting content access for NFTs.
+ * @notice created by @mashavaverova
+ */
 contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         using SafeERC20 for IERC20;
 
+  /**
+     * @notice Reference to the RoyaltyManager contract.
+     */
     IRoyaltyManager public royaltyManager;
+
+    /**
+     * @notice Reference to the AuthorManager contract.
+     */
     IAuthorManager public authorManager;
+
+    /**
+     * @notice Reference to the PlatformAdmin contract.
+     */
     IPlatformAdmin public platformAdmin;
+
+    /**
+     * @notice Reference to the ContentAccess contract.
+     */
     IContentAccess public contentAccess;
 
-    // Balances for authors: token -> author -> balance
+    /**
+     * @notice Mapping of author balances by payment token.
+     * @dev authorBalances[token][author] = balance.
+     */
     mapping(address => mapping(address => uint256)) private authorBalances;
 
+   /** @notice Events */
     event PaymentProcessed(address indexed payer, uint256 tokenId, uint256 price, address token);
     event DonationSent(address indexed target, uint256 amount, address token);
     event AuthorWithdrawn(address indexed author, uint256 amount, address indexed token);
 
+    /**
+     * @notice Constructor to initialize the contract.
+     * @param _royaltyManager Address of the RoyaltyManager contract.
+     * @param _authorManager Address of the AuthorManager contract.
+     * @param _platformAdmin Address of the PlatformAdmin contract.
+     * @param _contentAccess Address of the ContentAccess contract.
+     */
     constructor(address _royaltyManager, address _authorManager, address _platformAdmin, address _contentAccess) {
         royaltyManager = IRoyaltyManager(_royaltyManager);
         authorManager = IAuthorManager(_authorManager);
@@ -34,6 +63,18 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         contentAccess = IContentAccess(_contentAccess);
     }
 
+    /* =======================================================
+                     External Functions
+   ======================================================= */
+
+    /**
+     * @notice Processes a payment, distributes royalties and donations, and grants content access.
+     * @param tokenId The ID of the token associated with the payment.
+     * @param price The payment amount.
+     * @param paymentToken The address of the payment token (address(0) for ETH).
+     * @param author The address of the author.
+     * @dev Ensures proper distribution of royalties and donations.
+     */
     function processPayment(uint256 tokenId, uint256 price, address paymentToken, address author)
         external
         payable
@@ -80,8 +121,11 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         emit PaymentProcessed(msg.sender, tokenId, price, paymentToken);
     }
 
-    /// @notice Allows authors to withdraw their balance
-    /// @param paymentToken Address of the ERC20 token to withdraw, or address(0) for ETH
+    /**
+     * @notice Allows authors to withdraw their balance.
+     * @param paymentToken The address of the payment token to withdraw (address(0) for ETH).
+     * @dev Ensures the withdrawal amount is available and valid.
+     */
     function withdraw(address paymentToken) external nonReentrant {
         uint256 balance = authorBalances[paymentToken][msg.sender];
         require(balance > 0, "No balance to withdraw");
@@ -97,7 +141,27 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         emit AuthorWithdrawn(msg.sender, balance, paymentToken);
     }
 
-    /// @notice Distribute author's donation targets
+    /**
+     * @notice Retrieves an author's balance for a specific token.
+     * @param paymentToken The address of the payment token (address(0) for ETH).
+     * @param author The address of the author.
+     * @return The author's balance in the specified payment token.
+     */
+    function getAuthorBalance(address paymentToken, address author) external view returns (uint256) {
+        return authorBalances[paymentToken][author];
+    }
+
+/* =======================================================
+                      Internal Functions
+   ======================================================= */
+
+    /**
+     * @notice Internal function to distribute donations from an author's share.
+     * @param author The address of the author.
+     * @param authorShare The share allocated to the author.
+     * @param paymentToken The address of the payment token (address(0) for ETH).
+     * @return totalDonations The total amount donated from the author's share.
+     */    
     function _distributeAuthorDonations(address author, uint256 authorShare, address paymentToken)
         internal
         returns (uint256 totalDonations)
@@ -120,15 +184,12 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         return totalDonations;
     }
 
-    /// @notice Get author's balance
-    /// @param paymentToken Address of the token, or address(0) for ETH
-    /// @param author Address of the author
-    function getAuthorBalance(address paymentToken, address author) external view returns (uint256) {
-        return authorBalances[paymentToken][author];
-    }
-
-    receive() external payable {}
-
+    /**
+     * @notice Internal function to distribute donations from the platform's share.
+     * @param platformShare The share allocated to the platform.
+     * @param paymentToken The address of the payment token (address(0) for ETH).
+     * @return totalDonations The total amount donated from the platform's share.
+     */
     function _distributePlatformDonations(uint256 platformShare, address paymentToken)
         internal
         returns (uint256 totalDonations)
@@ -150,4 +211,12 @@ contract PaymentHandler is IPaymentHandler, ReentrancyGuard {
         }
         return totalDonations;
     }
+
+    /* =======================================================
+                     Fallback Function
+   ======================================================= */
+    /**
+     * @notice Fallback function to handle ETH transfers to the contract.
+     */
+    receive() external payable {}
 }

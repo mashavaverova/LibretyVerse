@@ -6,7 +6,13 @@ optimizer = true  # Enables the optimizer
 optimize_runs = 200  # Sets the optimization runs (200 is a good starting point)
 via_ir = true      # Enables the via-ir optimizer
 disable_contract_metadata = true
+script = "./scripts"
+lib = "./lib"
+
+[rpc_endpoints]
+sepolia = "https://eth-sepolia.g.alchemy.com/v2/Ml8SVfbNch1sX4VDGBp9HKShzt26fc6g"
 
 
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options i have this 

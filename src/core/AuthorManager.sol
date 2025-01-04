@@ -5,25 +5,54 @@ import "./PlatformAdmin.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/IAuthorManager.sol";
 
+/**
+ * @title AuthorManager
+ * @dev Manages donations, balances, and withdrawal functionalities for authors on the platform.
+ */
 contract AuthorManager is IAuthorManager, ReentrancyGuard {
     PlatformAdmin public platformAdminContract;
 
-    // Author donation management
-    mapping(address => mapping(address => uint256)) public authorDonations; // Author-specific donations
-    mapping(address => address[]) public authorDonationTargets; // List of author's donation targets
+    /**
+     * @notice Tracks specific donation percentages from authors to targets.
+     * @dev authorDonations[author][target] = percentage.
+     */
+    mapping(address => mapping(address => uint256)) public authorDonations;
 
-    mapping(address => uint256) public authorBalances; // Balance tracking for authors
+    /**
+     * @notice Tracks a list of donation targets for each author.
+     */
+    mapping(address => address[]) public authorDonationTargets;
 
+    /**
+     * @notice Tracks the ETH balance of each author.
+     */
+    mapping(address => uint256) public authorBalances;
+
+    /** @notice Events */
     event AuthorDonationTargetSet(address indexed author, address indexed target, uint256 percentage);
     event AuthorDonationTargetRemoved(address indexed author, address indexed target);
     event AuthorWithdrawn(address indexed author, uint256 amount);
 
+    /**
+     * @param _platformAdminContract The address of the PlatformAdmin contract.
+     * @dev Initializes the contract with the PlatformAdmin instance.
+     */
     constructor(address _platformAdminContract) {
         require(_platformAdminContract != address(0), "Invalid PlatformAdmin contract");
         platformAdminContract = PlatformAdmin(_platformAdminContract);
     }
 
-    /// @inheritdoc IAuthorManager
+
+/* =======================================================
+                     External Functions
+   ======================================================= */
+
+    /**
+     * @notice Allows an author to set a donation target with a percentage allocation.
+     * @param target The address of the donation target.
+     * @param percentage The percentage of donations allocated to the target (max 100%).
+     * @dev Limited to a maximum of 3 donation targets per author.
+     */
     function setDonationTarget(address target, uint256 percentage) external override {
         address author = msg.sender;
         require(target != address(0), "Invalid donation target");
@@ -41,7 +70,11 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
         emit AuthorDonationTargetSet(author, target, percentage);
     }
 
-    /// @inheritdoc IAuthorManager
+    /**
+     * @notice Allows an author to remove a previously set donation target.
+     * @param target The address of the donation target to be removed.
+     * @dev The target must exist in the author's donation targets.
+     */
     function removeDonationTarget(address target) external override {
         address author = msg.sender;
         require(_isTargetExists(author, target), "Target does not exist");
@@ -52,31 +85,31 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
         emit AuthorDonationTargetRemoved(author, target);
     }
 
-    /// @inheritdoc IAuthorManager
+    /**
+     * @notice Allows an author to withdraw their accumulated ETH balance.
+     * @dev Prevents reentrancy attacks using the ReentrancyGuard.
+     */
     function withdraw() external override nonReentrant {
-    // Resolve the author's address
     address author = platformAdminContract.getValidAuthor(msg.sender); // Resolves platform admin fallback
-
-    // Validate the author's address
     require(author != address(0), "Invalid author address");
     require(author != address(this), "Cannot withdraw to the contract address");
 
-    // Check the author's balance
     uint256 balance = authorBalances[author];
     require(balance > 0, "No balance to withdraw");
 
-    // Update balance before transferring to prevent reentrancy
     authorBalances[author] = 0;
-
-    // Perform the ETH transfer safely
     (bool success,) = payable(author).call{value: balance}("");
     require(success, "ETH transfer failed");
 
-    // Emit the withdrawal event
     emit AuthorWithdrawn(author, balance);
 }
 
-    /// @inheritdoc IAuthorManager
+    /**
+     * @notice Allows deposits for an author by transferring ETH to the contract.
+     * @param author The address of the author to credit.
+     * @param amount The amount of ETH being deposited.
+     * @dev Ensures the deposited ETH matches the specified amount.
+     */
     function deposit(address author, uint256 amount) external payable override {
         require(amount > 0, "Invalid deposit amount");
         require(msg.value == amount, "Mismatched ETH amount");
@@ -85,7 +118,12 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
         authorBalances[resolvedAuthor] += amount;
     }
 
-    /// @inheritdoc IAuthorManager
+    /**
+     * @notice Retrieves the donation targets and their corresponding percentages for an author.
+     * @param author The address of the author whose donation targets are being queried.
+     * @return targets The list of donation target addresses.
+     * @return percentages The list of percentage allocations for each target.
+     */
     function getAuthorDonationTargets(address author)
         external
         view
@@ -104,8 +142,16 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
             percentages[i] = authorDonations[resolvedAuthor][target];
         }
     }
+/* =======================================================
+                     Internal Functions
+   ======================================================= */
 
-    /// @notice Internal function to check if a target exists
+     /**
+     * @notice Checks if a donation target exists for an author.
+     * @param author The address of the author.
+     * @param target The address of the target to check.
+     * @return exists True if the target exists, false otherwise.
+     */
     function _isTargetExists(address author, address target) internal view returns (bool) {
         for (uint256 i = 0; i < authorDonationTargets[author].length; i++) {
             if (authorDonationTargets[author][i] == target) {
@@ -115,7 +161,12 @@ contract AuthorManager is IAuthorManager, ReentrancyGuard {
         return false;
     }
 
-    /// @notice Internal function to remove a target
+    /**
+     * @notice Removes a donation target for an author.
+     * @param author The address of the author.
+     * @param target The address of the target to remove.
+     * @dev Updates the target list by replacing the target with the last entry and removing the last entry.
+     */
     function _removeTarget(address author, address target) internal {
         uint256 length = authorDonationTargets[author].length;
 

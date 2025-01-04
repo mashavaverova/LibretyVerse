@@ -4,9 +4,25 @@ pragma solidity 0.8.20;
 import "forge-std/console.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
 
+/**
+ * @title MetadataLib
+ * @dev A library for managing and validating metadata for digital content, including validation and formatting.
+ * @notice created by @mashavaverova
+ */
+
 library MetadataLib {
     using Strings for uint256;
 
+    /**
+     * @notice Represents metadata for digital content.
+     * @param title Title of the content.
+     * @param author Author of the content.
+     * @param contentLink Link to the content (e.g., IPFS or HTTP URL).
+     * @param price Price of the content in ETH.
+     * @param license License type or information.
+     * @param copyNumber Current copy number of the content.
+     * @param totalCopies Total number of copies available.
+     */
     struct Metadata {
         string title;
         string author;
@@ -17,11 +33,25 @@ library MetadataLib {
         uint256 totalCopies;
     }
 
+    /** Custom errors */
     error EmptyField(string field);
     error InvalidURI(string uri);
     error InvalidPrice();
     error InvalidCopyNumber(uint256 copyNumber, uint256 totalCopies);
 
+
+/* =======================================================
+                      Internal Functions
+   ======================================================= */
+
+   
+    /**
+     * @notice Validates metadata fields to ensure they meet basic requirements.
+     * @param metadata The metadata to validate.
+     * @return field The name of the invalid field, if any.
+     * @return reason The reason for the invalidation, if any.
+     * @dev Reverts with specific errors for invalid fields.
+     */
     function validateMetadata(Metadata memory metadata)
         internal
         pure
@@ -49,7 +79,11 @@ library MetadataLib {
 
         return ("", "");
     }
-
+        /**
+     * @notice Checks if a URI is valid. Accepts `http://`, `https://`, or `ipfs://` prefixes.
+     * @param uri The URI to validate.
+     * @return True if the URI is valid, otherwise false.
+     */
     function isValidURI(string memory uri) internal pure returns (bool) {
         bytes memory uriBytes = bytes(uri);
 
@@ -68,6 +102,12 @@ library MetadataLib {
         return hasHttp || hasHttps || hasIpfs;
     }
 
+
+    /**
+     * @notice Formats metadata into a JSON-like string.
+     * @param metadata The metadata to format.
+     * @return formattedMetadata The metadata as a JSON-like string.
+     */
     function formatMetadata(Metadata memory metadata) internal pure returns (string memory formattedMetadata) {
     formattedMetadata = string(
         bytes.concat(

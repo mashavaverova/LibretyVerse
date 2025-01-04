@@ -1,0 +1,127 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "validateAndLog",
+      "inputs": [
+        {
+          "name": "metadata",
+          "type": "tuple",
+          "internalType": "struct MetadataLib.Metadata",
+          "components": [
+            { "name": "title", "type": "string", "internalType": "string" },
+            { "name": "author", "type": "string", "internalType": "string" },
+            {
+              "name": "contentLink",
+              "type": "string",
+              "internalType": "string"
+            },
+            { "name": "price", "type": "uint256", "internalType": "uint256" },
+            { "name": "license", "type": "string", "internalType": "string" },
+            {
+              "name": "copyNumber",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "totalCopies",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
+        }
+      ],
+      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "MetadataValidated",
+      "inputs": [
+        {
+          "name": "title",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "author",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "contentLink",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "price",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "license",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "copyNumber",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "totalCopies",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "MetadataValidationFailed",
+      "inputs": [
+        {
+          "name": "field",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "EmptyField",
+      "inputs": [
+        { "name": "field", "type": "string", "internalType": "string" }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InvalidCopyNumber",
+      "inputs": [
+        { "name": "copyNumber", "type": "uint256", "internalType": "uint256" },
+        { "name": "totalCopies", "type": "uint256", "internalType": "uint256" }
+      ]
+    },
+    { "type": "error", "name": "InvalidPrice", "inputs": [] },
+    {
+      "type": "error",
+      "name": "InvalidURI",
+      "inputs": [{ "name": "uri", "type": "string", "internalType": "string" }]
+    }
+  ]
+}

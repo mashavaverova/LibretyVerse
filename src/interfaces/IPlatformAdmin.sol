@@ -25,7 +25,13 @@ interface IPlatformAdmin {
     // @return donationTargets An array of addresses representing donation targets.
     function getDonationTargets() external view returns (address[] memory donationTargets);
 
+    // @notice Retrieves donation targets and their respective percentages.
+    // @return targets An array of addresses representing donation targets.
+    // @return percentages An array of uint256 representing donation percentages for each target.
     function getPlatformDonationTargets() external view returns (address[] memory, uint256[] memory);
 
+    // @notice Retrieves the address of a valid author.
+    // @param author The address of the author to retrieve.
+    // @return validAuthor The address of the valid author.
     function getValidAuthor(address author) external view returns (address);
 }

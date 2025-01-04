@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+// @title IAuthorManager
+// @notice Interface for managing Author: Firstname Lastname on the platform.
 interface IAuthorManager {
     /// @notice Set donation targets and percentages for an author
     /// @param target The address of the donation target

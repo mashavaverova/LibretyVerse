@@ -1,0 +1,258 @@
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "_platformAdmin",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_authorManager",
+          "type": "address",
+          "internalType": "address"
+        },
+        { "name": "_authorFee", "type": "uint256", "internalType": "uint256" },
+        {
+          "name": "_platformFee",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "_secondaryRoyalty",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "authorFee",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "authorManager",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IAuthorManager"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "calculateSecondaryRoyalties",
+      "inputs": [
+        { "name": "salePrice", "type": "uint256", "internalType": "uint256" }
+      ],
+      "outputs": [
+        {
+          "name": "authorRoyalty",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "platformRoyalty",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "distributePrimarySale",
+      "inputs": [
+        { "name": "salePrice", "type": "uint256", "internalType": "uint256" },
+        { "name": "author", "type": "address", "internalType": "address" }
+      ],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "distributeSecondarySale",
+      "inputs": [
+        { "name": "salePrice", "type": "uint256", "internalType": "uint256" },
+        { "name": "author", "type": "address", "internalType": "address" }
+      ],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "getRoyaltyConfig",
+      "inputs": [],
+      "outputs": [
+        { "name": "_authorFee", "type": "uint256", "internalType": "uint256" },
+        {
+          "name": "_platformFee",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "_secondaryRoyalty",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "platformAdmin",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IPlatformAdmin"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "platformDonationFee",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "platformFee",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "secondaryRoyalty",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setFees",
+      "inputs": [
+        { "name": "_authorFee", "type": "uint256", "internalType": "uint256" },
+        {
+          "name": "_platformFee",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "_secondaryRoyalty",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "updatePlatformDonationFee",
+      "inputs": [
+        {
+          "name": "_platformDonationFee",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "FeesUpdated",
+      "inputs": [
+        {
+          "name": "authorFee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platformFee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "secondaryRoyalty",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RoyaltiesCalculated",
+      "inputs": [
+        {
+          "name": "salePrice",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "authorShare",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platformShare",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "totalDonations",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "SecondaryRoyaltiesCalculated",
+      "inputs": [
+        {
+          "name": "salePrice",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "authorRoyalty",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platformRoyalty",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] }
+  ]
+}

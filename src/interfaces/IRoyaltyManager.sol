@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+// @title IRoyaltyManager
+// @notice Defines the interface for the RoyaltyManager contract.
 interface IRoyaltyManager {
     /// @notice Configures the royalty percentages.
     /// @param authorFee Percentage allocated to the author (0–100).
